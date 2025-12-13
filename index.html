@@ -1,0 +1,66 @@
+<script>
+const video = document.getElementById("video");
+const channelsDiv = document.getElementById("channels");
+const DEFAULT_M3U =
+  "https://raw.githubusercontent.com/iptv-org/iptv/master/index.m3u";
+
+let hls;
+
+async function loadPlaylist(url) {
+  channelsDiv.innerHTML = "Loading channels...";
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+
+    const lines = text.split("\n");
+    channelsDiv.innerHTML = "";
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith("#EXTINF")) {
+        const name = lines[i].split(",")[1] || "Unknown";
+        const stream = lines[i + 1];
+
+        if (!stream || !stream.startsWith("http")) continue;
+
+        const div = document.createElement("div");
+        div.className = "channel";
+        div.textContent = name;
+
+        div.onclick = () => playStream(stream);
+        channelsDiv.appendChild(div);
+      }
+    }
+  } catch (e) {
+    channelsDiv.innerHTML = "Failed to load playlist";
+  }
+}
+
+function playStream(url) {
+  if (hls) hls.destroy();
+
+  if (Hls.isSupported()) {
+    hls = new Hls();
+    hls.loadSource(url);
+    hls.attachMedia(video);
+  } else {
+    video.src = url;
+  }
+}
+
+// Auto-load on app start
+window.addEventListener("load", () => {
+  loadPlaylist(DEFAULT_M3U);
+});
+
+// Optional: allow manual override
+document.getElementById("m3uUrl").addEventListener("keypress", e => {
+  if (e.key === "Enter") {
+    loadPlaylist(e.target.value);
+  }
+});
+
+// Service worker
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
